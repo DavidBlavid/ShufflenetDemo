@@ -212,6 +212,7 @@ with gr.Blocks(css=custom_css) as demo:
     with gr.Row(elem_id="row1"):
         with gr.Column(scale = 5):
             input_image = gr.Image(shape=(224, 224))
+            
 
         with gr.Column(scale = 2):
             label_prediction = gr.Label("-", label="Prediction")
@@ -219,6 +220,7 @@ with gr.Blocks(css=custom_css) as demo:
 
     btn = gr.Button("Predict")
     btn.click(predict, inputs=input_image, outputs=[label_prediction, label_time])
+    input_image.change(predict, inputs=input_image, outputs=[label_prediction, label_time])
 
         
 demo.launch(inline=False,inbrowser=True)
