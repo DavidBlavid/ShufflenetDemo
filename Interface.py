@@ -178,8 +178,9 @@ def timed_prediction(tensor):
 
 # predict the class of an image
 # returns the top 3 classes and prediction time in seconds
-def predict(img):
+def predict_single(img):
     
+    # crop the image
     img = center_crop(img)
     input_tensor = torch.from_numpy(img).unsqueeze(0).permute(0, 3, 1, 2).float()
 
@@ -191,36 +192,85 @@ def predict(img):
 
     return text_prediction, text_time
 
+# get predictions from all models
+def predict_all(img):
+    
+    # crop the image
+    img = center_crop(img)
+    input_tensor = torch.from_numpy(img).unsqueeze(0).permute(0, 3, 1, 2).float()
 
-custom_css = "#row1 {height: 60vh !important;overflow-y: auto;}"
+    predictions = {}
+
+    for configuration in configurations:
+        # load the model
+        load_model(configuration)
+
+        # Get the prediction
+        prediction, time = timed_prediction(input_tensor)
+
+        # turn it into a nice string
+        text_prediction = prediction[0] + ", " + prediction[1] + ", " + prediction[2]
+        text_time = str(round(time, 5)) + "s"
+
+        predictions[configuration] = text_prediction + " [" + text_time + "]"
+
+    return list(predictions.values())
+
+
+custom_css = """
+#row1 {height: 60vh !important;overflow-y: auto;}
+#row2 {height: 80vh !important;overflow-y: auto;}
+#label_conf {height: 10vh !important; padding: 0px !important;}
+#label_conf .output-class {font-size: var(--text-lg) !important;}
+"""
 
 with gr.Blocks(css=custom_css) as demo:
     gr.Markdown("# ShuffleNet Demo")
 
-    with gr.Row(elem_id="row0"):
+    with gr.Tab("Single Inference"):
 
-        with gr.Column(scale = 5):
-            dropdown = gr.Dropdown(configurations, label="Choose a Model", default="s2_10")
+        with gr.Row(elem_id="row0"):
 
-        with gr.Column(scale = 2):
-            label_model = gr.Label("-", label="Model")
-        
-        dropdown.change(load_model, inputs=dropdown, outputs=label_model)
+            with gr.Column(scale = 5):
+                dropdown = gr.Dropdown(configurations, label="Choose a Model", value="s2_10")
 
-        
-
-    with gr.Row(elem_id="row1"):
-        with gr.Column(scale = 5):
-            input_image = gr.Image(shape=(224, 224))
+            with gr.Column(scale = 2):
+                label_model = gr.Label("ShuffleNetV2 1.0x, 2 groups", label="Model")
             
+            dropdown.change(load_model, inputs=dropdown, outputs=label_model)
 
-        with gr.Column(scale = 2):
-            label_prediction = gr.Label("-", label="Prediction")
-            label_time = gr.Label("-", label="Prediction time")
+        with gr.Row(elem_id="row1"):
+            with gr.Column(scale = 5):
+                input_image_single = gr.Image(shape=(224, 224))
 
-    btn = gr.Button("Predict")
-    btn.click(predict, inputs=input_image, outputs=[label_prediction, label_time])
-    input_image.change(predict, inputs=input_image, outputs=[label_prediction, label_time])
+            with gr.Column(scale = 2):
+                label_prediction = gr.Label("-", label="Prediction")
+                label_time = gr.Label("-", label="Prediction time")
 
-        
+        btn_predict_single = gr.Button("Predict")
+        btn_predict_single.click(predict_single, inputs=input_image_single, outputs=[label_prediction, label_time])
+        input_image_single.change(predict_single, inputs=input_image_single, outputs=[label_prediction, label_time])
+
+    with gr.Tab("Full Inference"):
+       
+        conf_labels = {}
+
+        with gr.Row(elem_id="row2"):
+            with gr.Column(scale = 4):
+                input_image_full = gr.Image(shape=(224, 224))
+
+            with gr.Column(scale = 1):
+                for configuration in configurations[:6]:
+                    conf_labels[configuration] = gr.Label("-", label=configuration, elem_id = "label_conf")
+
+            with gr.Column(scale = 1):
+                for configuration in configurations[6:]:
+                    conf_labels[configuration] = gr.Label("-", label=configuration, elem_id = "label_conf")
+
+        btn_predict_full = gr.Button("Predict")
+        btn_predict_full.click(predict_all, inputs=input_image_full, outputs=list(conf_labels.values()))
+        input_image_full.change(predict_all, inputs=input_image_full, outputs=list(conf_labels.values()))
+
+# load the default model
+load_model('s2_10')
 demo.launch(inline=False,inbrowser=True)
