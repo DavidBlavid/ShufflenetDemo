@@ -1,14 +1,7 @@
 import torch
-import torch.nn.functional as F
 import gradio as gr
-import numpy as np
 import json
 import time
-
-import matplotlib.pyplot as plt
-from PIL import Image
-import torchvision.transforms as transforms
-from skimage.transform import resize
 
 import architecture.ShuffleNetV1.network as ShuffleNetV1
 import architecture.ShuffleNetV2.network as ShuffleNetV2
@@ -72,10 +65,6 @@ def load_model(configuration):
     checkpoint = torch.load(path, map_location=torch.device('cpu'))
 
     # all keys in checkpoint have an unnecessary 'module.' prefix, so we remove it
-    state_dict = {k.replace('module.', ''): v for k, v in checkpoint['state_dict'].items()}
-
-    # all keys have an unnecessary 'module.' prefix
-    # so we remove it
     state_dict = {k.replace('module.', ''): v for k, v in checkpoint['state_dict'].items()}
 
     global model
@@ -193,6 +182,8 @@ def predict_single(img):
     return text_prediction, text_time
 
 # get predictions from all models
+# returns a list of top 3 predictions and prediction time in seconds for all models
+# the output gets fed into the label_conf labels in the Full Inference tab
 def predict_all(img):
     
     # crop the image
